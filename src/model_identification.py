@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Stacf:
@@ -102,9 +103,7 @@ class Stpacf(Stacf):
         """
         :return: Matrix
         """
-        print('create yule-walker matrix')
         YWmat = self._st_mat()
-        print('create yule-walker vector')
         YWvec = self._st_vec()
 
         s_lag = self._s_lags
@@ -112,7 +111,6 @@ class Stpacf(Stacf):
 
         st_pacf = np.zeros((t_lag, s_lag))
 
-        print('solve yule-walker equation')
         for t in range(0, t_lag):
             for s in range(0, s_lag):
                 index = t * s_lag + s
@@ -123,3 +121,20 @@ class Stpacf(Stacf):
     def estimate(self):
         self._stacf = self._st_pacf()
         return self._stacf
+
+
+def plot(stacf, stpacf):
+    m,n = stacf.shape
+    mat_dict = {'STACF':stacf, 'STPACF':stpacf}
+    for key,val in mat_dict.items():
+        fig, axs = plt.subplots(n, figsize=(10, 4*n))
+        if n == 1: axs = [axs]
+        fig.suptitle(key, size=20, x=0.0)
+        xaxis = range(1, m+1)
+        for i in range(n):
+            axs[i].bar(xaxis, val[:,i])
+            axs[i].set_ylim((-1,1))
+            axs[i].set_xlim(0)
+            axs[i].set_title(f'Space Lag {i+1}')
+        plt.tight_layout()
+        plt.show()
