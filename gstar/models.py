@@ -16,7 +16,7 @@ class GSTAR:
         if not (isinstance(self.weights, list) and isinstance(self.lambd, list)):
             raise TypeError("Both weight matrices and lambda should be a list object.")
             
-        if not isinstance(self.p, int) or self.p < 1:
+        if not isinstance(self.p, (int, np.integer)) or self.p < 1:
             raise ValueError("The time order p must be positive integers.")
         
         for l in self.lambd:
@@ -167,8 +167,8 @@ class GSTAR:
         return dets, stationary
     
     def score(self, y_true, y_pred, B):
-        T, N = len(y_true.ravel()), len(B)
-        res = y_true.ravel() - y_pred.ravel()
+        T, N = len(np.asarray(y_true).ravel()), len(B)
+        res = np.asarray(y_true).ravel() - np.asarray(y_pred).ravel()
         tot_error = res.dot(res)
         msr = tot_error / T
         log_likelihood = - T/2 * np.log(2*np.pi) - T/2 * np.log(msr) - 1/(2*msr) * tot_error
