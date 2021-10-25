@@ -5,7 +5,18 @@ from scipy.linalg import block_diag
 
 
 class GSTAR:
-    def __init__(self, weights, p, lambd):
+    def __init__(self, train, weights, p, lambd):
+        if isinstance(train, pd.DataFrame):
+            self.idx = train.index
+            self.col = train.columns
+        elif isinstance(train, np.ndarray):
+            self.idx = range(train.shape[0])
+            self.col = range(train.shape[1])
+        else:
+            raise TypeError("Train dataset must be either numpy array or pandas dataframe.")
+        
+        self.n = len(self.col)
+        self.train = np.asarray(train)
         self.weights = weights
         self.p = p
         self.lambd = lambd
@@ -34,36 +45,22 @@ class GSTAR:
         for weight in self.weights:
             if np.sum(np.isnan(weight)) > 0:
                 raise ValueError("Weight contains NaN.")
-    
-    def fit(self, train):
-        # initialization
-        if isinstance(train, pd.DataFrame):
-            self.idx = train.index
-            self.col = train.columns
-        elif isinstance(train, np.ndarray):
-            self.idx = range(train.shape[0])
-            self.col = range(train.shape[1])
-        else:
-            raise TypeError("Train dataset must be either numpy array or pandas dataframe.")
         
-        self.train = np.asarray(train)
-        
-        # sanity check
-        self.n = len(self.col)
         for weight in self.weights:
             i,j = weight.shape
             if i != self.n or j != self.n:
                 raise ValueError("Dimension mismatch. "
                                  "Weight should have %d by %d dimension."
                                  % (self.n, self.n))
-        
+    
+    def fit(self):
         # create X
         Vs = self.intermediary_matrix(self.train)
         X = self.preprocess_data(Vs)
 
         # create Y
         Y = self.train[self.p:,:]
-        Y_copy = Y.copy()
+        Ycopy = Y.copy()
         Y = Y.reshape(-1, 1, order='F')
 
         # create B
@@ -73,11 +70,11 @@ class GSTAR:
         dets, stationary = self.stationarity_check(B, self.p, self.lambd)
 
         # fit the model
-        Y_hat = X @ B
-        msr, aic = self.score(Y, Y_hat, B)
-        Y_hat = Y_hat.reshape(-1, self.n, order='F')
-        residual = Y_copy - Y_hat
-        fitted = pd.DataFrame(Y_hat, columns=self.col, index=self.idx[self.p:])
+        Yhat = X @ B
+        msr, aic = self.score(Y, Yhat, B)
+        Yhat = Yhat.reshape(-1, self.n, order='F')
+        residual = Ycopy - Yhat
+        fitted = pd.DataFrame(Yhat, columns=self.col, index=self.idx[self.p:])
         
         # tabulate result
         self.result = {
@@ -175,7 +172,7 @@ class GSTAR:
         AIC = - 2/T * log_likelihood + 2/T * N
         return msr, AIC
     
-    def forecast(self, num_iter, test=None):
+    def forecast(self, num_iter=1, test=None):
         if num_iter < 0:
             raise ValueError("The number of forecast time must be positive.")
         
@@ -194,8 +191,8 @@ class GSTAR:
                 Vs = self.intermediary_matrix(self.test[i:i+self.p, :], mode='test')
             
             X = self.preprocess_data(Vs)
-            Y_hat = X @ self.result['parameter']
-            fct[i+self.p] = Y_hat.ravel()
+            Yhat = X @ self.result['parameter']
+            fct[i+self.p] = Yhat.ravel()
 
         fct = fct[self.p:, :]
         fct = pd.DataFrame(fct)
